@@ -3,11 +3,17 @@ import "./style.css";
 document.body.innerHTML = `
   <h1>Sticker Sheet</h1>
   <canvas id = "canvas" width="256" height="256"></canvas>
-  <button id = "clear">Clear</button>
+  <div>
+    <button id = "clear">Clear</button>
+    <button id = "undo">Undo</button>
+    <button id = "redo">Redo</button>
+  </div>
 `;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const clear = document.getElementById("clear") as HTMLButtonElement;
+const undo = document.getElementById("undo") as HTMLButtonElement;
+const redo = document.getElementById("redo") as HTMLButtonElement;
 
 const ctx = canvas.getContext("2d")!;
 
@@ -24,6 +30,7 @@ interface Point {
   y: number;
 }
 const lines: Point[][] = [];
+const redoLines: Point[][] = [];
 
 let currentLine: Point[] | null = null;
 
@@ -36,6 +43,7 @@ canvas.addEventListener("mousedown", (e) => {
 
   currentLine = [];
   lines.push(currentLine);
+  redoLines.splice(0, redoLines.length);
   currentLine.push({ x: cursor.x, y: cursor.y });
   Notify("drawing-changed");
 });
@@ -58,6 +66,20 @@ canvas.addEventListener("mousemove", (e) => {
 clear.addEventListener("click", () => {
   lines.splice(0, lines.length);
   Notify("drawing-changed");
+});
+
+undo.addEventListener("click", () => {
+  if (lines.length > 0) {
+    redoLines.push(lines.pop()!);
+    Notify("drawing-changed");
+  }
+});
+
+redo.addEventListener("click", () => {
+  if (redoLines.length > 0) {
+    lines.push(redoLines.pop()!);
+    Notify("drawing-changed");
+  }
 });
 
 function redraw() {

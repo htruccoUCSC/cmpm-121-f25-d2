@@ -8,12 +8,32 @@ document.body.innerHTML = `
     <button id = "undo">Undo</button>
     <button id = "redo">Redo</button>
   </div>
+  <div>
+    <button id = "thin" disabled>Thin</button>
+    <button id = "thick">Thick</button>
+  </div>
 `;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const clear = document.getElementById("clear") as HTMLButtonElement;
 const undo = document.getElementById("undo") as HTMLButtonElement;
 const redo = document.getElementById("redo") as HTMLButtonElement;
+const thin = document.getElementById("thin") as HTMLButtonElement;
+const thick = document.getElementById("thick") as HTMLButtonElement;
+
+let lineWidth = 2;
+
+thin.addEventListener("click", () => {
+  lineWidth = 2;
+  thin.disabled = true;
+  thick.disabled = false;
+});
+
+thick.addEventListener("click", () => {
+  lineWidth = 4;
+  thin.disabled = false;
+  thick.disabled = true;
+});
 
 const ctx = canvas.getContext("2d")!;
 
@@ -32,6 +52,7 @@ interface Point {
 
 interface LineCommand {
   points: Point[];
+  thickness: number;
   display(ctx: CanvasRenderingContext2D): void;
 }
 
@@ -42,6 +63,12 @@ let currentLineCommand: LineCommand | null = null;
 
 const cursor = { active: false, x: 0, y: 0 };
 
+function tick() {
+  redraw();
+  requestAnimationFrame(tick);
+}
+tick();
+
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
   cursor.x = e.offsetX;
@@ -49,8 +76,10 @@ canvas.addEventListener("mousedown", (e) => {
 
   currentLineCommand = {
     points: [],
+    thickness: lineWidth,
     display(ctx: CanvasRenderingContext2D) {
       if (this.points.length > 1) {
+        ctx.lineWidth = this.thickness;
         ctx.beginPath();
         const { x, y } = this.points[0];
         ctx.moveTo(x, y);

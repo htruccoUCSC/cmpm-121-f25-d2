@@ -1,5 +1,11 @@
 import "./style.css";
 
+const availableEmojis: string[] = ["😀", "😂", "😍"];
+
+const itemsHTML = availableEmojis.map((item) =>
+  `<button class="emoji" id="${item}">${item}</button>`
+).join("");
+
 document.body.innerHTML = `
   <h1>Sticker Sheet</h1>
   <canvas id = "canvas" width="256" height="256"></canvas>
@@ -12,6 +18,7 @@ document.body.innerHTML = `
     <button id = "thin" disabled>Thin</button>
     <button id = "thick">Thick</button>
   </div>
+  <div>${itemsHTML}</div>
 `;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -21,18 +28,40 @@ const redo = document.getElementById("redo") as HTMLButtonElement;
 const thin = document.getElementById("thin") as HTMLButtonElement;
 const thick = document.getElementById("thick") as HTMLButtonElement;
 
-let lineWidth = 2;
+let lineWidth: number | null = 2;
+let currentEmoji: string | null = null;
+
+let lastActiveButton: HTMLButtonElement = thin;
+
+function setActiveButton(btn: HTMLButtonElement) {
+  lastActiveButton.disabled = false;
+  if (btn) {
+    btn.disabled = true;
+  }
+  lastActiveButton = btn;
+}
 
 thin.addEventListener("click", () => {
+  currentEmoji = null;
   lineWidth = 2;
-  thin.disabled = true;
-  thick.disabled = false;
+  setActiveButton(thin);
 });
 
 thick.addEventListener("click", () => {
+  currentEmoji = null;
   lineWidth = 4;
-  thin.disabled = false;
-  thick.disabled = true;
+  setActiveButton(thick);
+});
+
+const emojiButtons = Array.from(
+  document.querySelectorAll(".emoji"),
+) as HTMLButtonElement[];
+emojiButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setActiveButton(btn);
+    currentEmoji = btn.id;
+    lineWidth = null;
+  });
 });
 
 const ctx = canvas.getContext("2d")!;
@@ -53,7 +82,8 @@ interface Point {
 
 interface LineCommand {
   points: Point[];
-  thickness: number;
+  thickness?: number | null;
+  emoji?: string | null;
   display(ctx: CanvasRenderingContext2D): void;
 }
 
@@ -64,7 +94,8 @@ let currentLineCommand: LineCommand | null = null;
 
 interface ToolCommand {
   point: Point;
-  thickness: number;
+  thickness?: number | null;
+  emoji?: string | null;
   display(ctx: CanvasRenderingContext2D): void;
 }
 
@@ -80,16 +111,25 @@ canvas.addEventListener("mousedown", (e) => {
   currentLineCommand = {
     points: [],
     thickness: lineWidth,
+    emoji: currentEmoji,
     display(ctx: CanvasRenderingContext2D) {
-      if (this.points.length > 1) {
-        ctx.lineWidth = this.thickness;
-        ctx.beginPath();
-        const { x, y } = this.points[0];
-        ctx.moveTo(x, y);
-        for (const { x, y } of this.points) {
-          ctx.lineTo(x, y);
+      if (this.thickness) {
+        if (this.points.length > 1) {
+          ctx.lineWidth = this.thickness;
+          ctx.beginPath();
+          const { x, y } = this.points[0];
+          ctx.moveTo(x, y);
+          for (const { x, y } of this.points) {
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
         }
-        ctx.stroke();
+      } else if (this.emoji) {
+        if (this.points.length) {
+          const p = this.points[this.points.length - 1];
+          ctx.font = "24px serif";
+          ctx.fillText(this.emoji, p.x - 8, p.y + 16);
+        }
       }
     },
   };
@@ -122,11 +162,17 @@ canvas.addEventListener("mouseenter", (e) => {
   currentToolCommand = {
     point: { x: e.offsetX, y: e.offsetY },
     thickness: lineWidth,
+    emoji: currentEmoji,
     display(ctx: CanvasRenderingContext2D) {
-      ctx.lineWidth = this.thickness;
-      ctx.beginPath();
-      ctx.arc(this.point.x, this.point.y, this.thickness / 4, 0, Math.PI * 2);
-      ctx.stroke();
+      if (this.thickness) {
+        ctx.lineWidth = this.thickness;
+        ctx.beginPath();
+        ctx.arc(this.point.x, this.point.y, this.thickness / 4, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (this.emoji) {
+        ctx.font = "24px serif";
+        ctx.fillText(this.emoji, this.point.x - 8, this.point.y + 16);
+      }
     },
   };
   Notify("tool-moved");

@@ -44,6 +44,7 @@ function Notify(eventName: string) {
 }
 
 bus.addEventListener("drawing-changed", redraw);
+bus.addEventListener("tool-moved", redraw);
 
 interface Point {
   x: number;
@@ -61,19 +62,21 @@ const redoCommands: LineCommand[] = [];
 
 let currentLineCommand: LineCommand | null = null;
 
-const cursor = { active: false, x: 0, y: 0 };
-
-function tick() {
-  redraw();
-  requestAnimationFrame(tick);
+interface ToolCommand {
+  point: Point;
+  thickness: number;
+  display(ctx: CanvasRenderingContext2D): void;
 }
-tick();
+
+let currentToolCommand: ToolCommand | null = null;
+
+// function tick() {
+//   redraw();
+//   requestAnimationFrame(tick);
+// }
+// tick();
 
 canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-
   currentLineCommand = {
     points: [],
     thickness: lineWidth,
@@ -92,23 +95,41 @@ canvas.addEventListener("mousedown", (e) => {
   };
   lineCommands.push(currentLineCommand);
   redoCommands.splice(0, redoCommands.length);
-  currentLineCommand.points.push({ x: cursor.x, y: cursor.y });
+  currentLineCommand.points.push({ x: e.offsetX, y: e.offsetY });
   Notify("drawing-changed");
 });
 
 canvas.addEventListener("mouseup", () => {
-  cursor.active = false;
   currentLineCommand = null;
   Notify("drawing-changed");
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (cursor.active) {
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
-    currentLineCommand?.points.push({ x: cursor.x, y: cursor.y });
+  currentToolCommand!.point = { x: e.offsetX, y: e.offsetY };
+  Notify("tool-moved");
+  if (e.buttons === 1) {
+    currentLineCommand?.points.push({ x: e.offsetX, y: e.offsetY });
     Notify("drawing-changed");
   }
+});
+
+canvas.addEventListener("mouseout", () => {
+  currentToolCommand = null;
+  Notify("tool-moved");
+});
+
+canvas.addEventListener("mouseenter", (e) => {
+  currentToolCommand = {
+    point: { x: e.offsetX, y: e.offsetY },
+    thickness: lineWidth,
+    display(ctx: CanvasRenderingContext2D) {
+      ctx.lineWidth = this.thickness;
+      ctx.beginPath();
+      ctx.arc(this.point.x, this.point.y, this.thickness / 4, 0, Math.PI * 2);
+      ctx.stroke();
+    },
+  };
+  Notify("tool-moved");
 });
 
 clear.addEventListener("click", () => {
@@ -133,4 +154,8 @@ redo.addEventListener("click", () => {
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   lineCommands.forEach((line) => line.display(ctx));
+
+  if (currentToolCommand) {
+    currentToolCommand.display(ctx);
+  }
 }

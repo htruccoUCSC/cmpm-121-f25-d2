@@ -29,10 +29,16 @@ interface Point {
   x: number;
   y: number;
 }
-const lines: Point[][] = [];
-const redoLines: Point[][] = [];
 
-let currentLine: Point[] | null = null;
+interface LineCommand {
+  points: Point[];
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+const lineCommands: LineCommand[] = [];
+const redoCommands: LineCommand[] = [];
+
+let currentLineCommand: LineCommand | null = null;
 
 const cursor = { active: false, x: 0, y: 0 };
 
@@ -41,16 +47,29 @@ canvas.addEventListener("mousedown", (e) => {
   cursor.x = e.offsetX;
   cursor.y = e.offsetY;
 
-  currentLine = [];
-  lines.push(currentLine);
-  redoLines.splice(0, redoLines.length);
-  currentLine.push({ x: cursor.x, y: cursor.y });
+  currentLineCommand = {
+    points: [],
+    display(ctx: CanvasRenderingContext2D) {
+      if (this.points.length > 1) {
+        ctx.beginPath();
+        const { x, y } = this.points[0];
+        ctx.moveTo(x, y);
+        for (const { x, y } of this.points) {
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    },
+  };
+  lineCommands.push(currentLineCommand);
+  redoCommands.splice(0, redoCommands.length);
+  currentLineCommand.points.push({ x: cursor.x, y: cursor.y });
   Notify("drawing-changed");
 });
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
-  currentLine = null;
+  currentLineCommand = null;
   Notify("drawing-changed");
 });
 
@@ -58,41 +77,31 @@ canvas.addEventListener("mousemove", (e) => {
   if (cursor.active) {
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
-    currentLine?.push({ x: cursor.x, y: cursor.y });
+    currentLineCommand?.points.push({ x: cursor.x, y: cursor.y });
     Notify("drawing-changed");
   }
 });
 
 clear.addEventListener("click", () => {
-  lines.splice(0, lines.length);
+  lineCommands.splice(0, lineCommands.length);
   Notify("drawing-changed");
 });
 
 undo.addEventListener("click", () => {
-  if (lines.length > 0) {
-    redoLines.push(lines.pop()!);
+  if (lineCommands.length > 0) {
+    redoCommands.push(lineCommands.pop()!);
     Notify("drawing-changed");
   }
 });
 
 redo.addEventListener("click", () => {
-  if (redoLines.length > 0) {
-    lines.push(redoLines.pop()!);
+  if (redoCommands.length > 0) {
+    lineCommands.push(redoCommands.pop()!);
     Notify("drawing-changed");
   }
 });
 
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const line of lines) {
-    if (line.length > 1) {
-      ctx.beginPath();
-      const { x, y } = line[0];
-      ctx.moveTo(x, y);
-      for (const { x, y } of line) {
-        ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  }
+  lineCommands.forEach((line) => line.display(ctx));
 }

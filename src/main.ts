@@ -1,6 +1,6 @@
 import "./style.css";
 
-const availableEmojis: string[] = ["😀", "😂", "😍"];
+const availableEmojis: string[] = ["💩", "🤠", "😭"];
 
 document.body.innerHTML = `
   <h1>Sticker Sheet</h1>
@@ -49,7 +49,7 @@ thin.addEventListener("click", () => {
 
 thick.addEventListener("click", () => {
   currentEmoji = null;
-  lineWidth = 4;
+  lineWidth = 6;
   setActiveButton(thick);
 });
 

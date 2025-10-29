@@ -14,6 +14,7 @@ document.body.innerHTML = `
   <div>
     <button id = "thin" disabled>Thin</button>
     <button id = "thick">Thick</button>
+    <button id = "color">Color</button>
   </div>
   <div id="emoji-container"></div>
   <div><button id="export">Export</button></div>
@@ -25,10 +26,12 @@ const undo = document.getElementById("undo") as HTMLButtonElement;
 const redo = document.getElementById("redo") as HTMLButtonElement;
 const thin = document.getElementById("thin") as HTMLButtonElement;
 const thick = document.getElementById("thick") as HTMLButtonElement;
+const color = document.getElementById("color") as HTMLButtonElement;
 const addSticker = document.getElementById("add-sticker") as HTMLButtonElement;
 const exportButton = document.getElementById("export") as HTMLButtonElement;
 
 let lineWidth: number | null = 2;
+let markerColor: string = "#000000";
 let currentEmoji: string | null = null;
 
 let lastActiveButton: HTMLButtonElement = thin;
@@ -51,6 +54,28 @@ thick.addEventListener("click", () => {
   currentEmoji = null;
   lineWidth = 6;
   setActiveButton(thick);
+});
+
+color.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "color";
+  input.value = markerColor || "#000000";
+  input.style.position = "fixed";
+  input.style.left = "-9999px";
+  document.body.appendChild(input);
+
+  const onInput = (e: Event) => {
+    const v = (e.target as HTMLInputElement).value;
+    markerColor = v;
+  };
+
+  input.addEventListener("input", onInput);
+  input.addEventListener("change", () => {
+    input.removeEventListener("input", onInput);
+    if (input.parentElement) input.parentElement.removeChild(input);
+  });
+
+  input.click();
 });
 
 function renderEmojiButtons() {
@@ -95,6 +120,7 @@ interface Point {
 interface LineCommand {
   points: Point[];
   thickness?: number | null;
+  color?: string | null;
   emoji?: string | null;
   display(ctx: CanvasRenderingContext2D): void;
 }
@@ -107,6 +133,7 @@ let currentLineCommand: LineCommand | null = null;
 interface ToolCommand {
   point: Point;
   thickness?: number | null;
+  color?: string | null;
   emoji?: string | null;
   display(ctx: CanvasRenderingContext2D): void;
 }
@@ -117,11 +144,13 @@ canvas.addEventListener("mousedown", (e) => {
   currentLineCommand = {
     points: [],
     thickness: lineWidth,
+    color: markerColor,
     emoji: currentEmoji,
     display(ctx: CanvasRenderingContext2D) {
-      if (this.thickness) {
+      if (this.thickness && this.color) {
         if (this.points.length > 1) {
           ctx.lineWidth = this.thickness;
+          ctx.strokeStyle = this.color;
           ctx.beginPath();
           const { x, y } = this.points[0];
           ctx.moveTo(x, y);
@@ -168,10 +197,12 @@ canvas.addEventListener("mouseenter", (e) => {
   currentToolCommand = {
     point: { x: e.offsetX, y: e.offsetY },
     thickness: lineWidth,
+    color: markerColor,
     emoji: currentEmoji,
     display(ctx: CanvasRenderingContext2D) {
-      if (this.thickness) {
+      if (this.thickness && this.color) {
         ctx.lineWidth = this.thickness;
+        ctx.strokeStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.point.x, this.point.y, this.thickness / 4, 0, Math.PI * 2);
         ctx.stroke();

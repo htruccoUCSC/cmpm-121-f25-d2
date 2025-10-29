@@ -16,6 +16,7 @@ document.body.innerHTML = `
     <button id = "thick">Thick</button>
   </div>
   <div id="emoji-container"></div>
+  <div><button id="export">Export</button></div>
 `;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -25,6 +26,7 @@ const redo = document.getElementById("redo") as HTMLButtonElement;
 const thin = document.getElementById("thin") as HTMLButtonElement;
 const thick = document.getElementById("thick") as HTMLButtonElement;
 const addSticker = document.getElementById("add-sticker") as HTMLButtonElement;
+const exportButton = document.getElementById("export") as HTMLButtonElement;
 
 let lineWidth: number | null = 2;
 let currentEmoji: string | null = null;
@@ -219,6 +221,19 @@ addSticker.addEventListener("click", () => {
       lineWidth = null;
     }
   }
+});
+
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d")!;
+  exportCtx.scale(4, 4);
+  lineCommands.forEach((line) => line.display(exportCtx));
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sticker-sheet.png";
+  anchor.click();
 });
 
 function redraw() {

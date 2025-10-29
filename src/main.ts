@@ -2,10 +2,6 @@ import "./style.css";
 
 const availableEmojis: string[] = ["😀", "😂", "😍"];
 
-const itemsHTML = availableEmojis.map((item) =>
-  `<button class="emoji" id="${item}">${item}</button>`
-).join("");
-
 document.body.innerHTML = `
   <h1>Sticker Sheet</h1>
   <canvas id = "canvas" width="256" height="256"></canvas>
@@ -13,12 +9,13 @@ document.body.innerHTML = `
     <button id = "clear">Clear</button>
     <button id = "undo">Undo</button>
     <button id = "redo">Redo</button>
+    <button id = "add-sticker">Add Sticker</button>
   </div>
   <div>
     <button id = "thin" disabled>Thin</button>
     <button id = "thick">Thick</button>
   </div>
-  <div>${itemsHTML}</div>
+  <div id="emoji-container"></div>
 `;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -27,6 +24,7 @@ const undo = document.getElementById("undo") as HTMLButtonElement;
 const redo = document.getElementById("redo") as HTMLButtonElement;
 const thin = document.getElementById("thin") as HTMLButtonElement;
 const thick = document.getElementById("thick") as HTMLButtonElement;
+const addSticker = document.getElementById("add-sticker") as HTMLButtonElement;
 
 let lineWidth: number | null = 2;
 let currentEmoji: string | null = null;
@@ -53,16 +51,28 @@ thick.addEventListener("click", () => {
   setActiveButton(thick);
 });
 
-const emojiButtons = Array.from(
-  document.querySelectorAll(".emoji"),
-) as HTMLButtonElement[];
-emojiButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    setActiveButton(btn);
-    currentEmoji = btn.id;
-    lineWidth = null;
+function renderEmojiButtons() {
+  const container = document.getElementById(
+    "emoji-container",
+  ) as HTMLDivElement;
+  if (!container) return;
+  container.innerHTML = availableEmojis
+    .map((item) => `<button class="emoji">${item}</button>`)
+    .join("");
+
+  const buttons = Array.from(
+    container.querySelectorAll(".emoji"),
+  ) as HTMLButtonElement[];
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setActiveButton(btn);
+      currentEmoji = btn.textContent || null;
+      lineWidth = null;
+    });
   });
-});
+}
+
+renderEmojiButtons();
 
 const ctx = canvas.getContext("2d")!;
 
@@ -100,12 +110,6 @@ interface ToolCommand {
 }
 
 let currentToolCommand: ToolCommand | null = null;
-
-// function tick() {
-//   redraw();
-//   requestAnimationFrame(tick);
-// }
-// tick();
 
 canvas.addEventListener("mousedown", (e) => {
   currentLineCommand = {
@@ -194,6 +198,26 @@ redo.addEventListener("click", () => {
   if (redoCommands.length > 0) {
     lineCommands.push(redoCommands.pop()!);
     Notify("drawing-changed");
+  }
+});
+
+addSticker.addEventListener("click", () => {
+  const text = prompt("Custom sticker text", "🧽");
+  if (text && text.trim().length > 0) {
+    const sticker = text.trim();
+    availableEmojis.push(sticker);
+    renderEmojiButtons();
+
+    const container = document.getElementById(
+      "emoji-container",
+    ) as HTMLDivElement;
+    const buttons = container.querySelectorAll(".emoji");
+    const newBtn = buttons[buttons.length - 1] as HTMLButtonElement | undefined;
+    if (newBtn) {
+      setActiveButton(newBtn);
+      currentEmoji = sticker;
+      lineWidth = null;
+    }
   }
 });
 
